@@ -1,0 +1,117 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  email     String   @unique
+  phoneNumber String?
+  profileImage String?
+  password  String
+  refreshTokenHash String?
+  birthDate DateTime
+  gender    String
+  roleId    Int?
+  role      Role?    @relation(fields: [roleId], references: [id])
+  auditLogs AuditLog[]
+  receivedNotifications Notification[] @relation("NotificationRecipient")
+  sentNotifications Notification[] @relation("NotificationSender")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  type        String   @default("info")
+  title       String
+  message     String
+  userId      Int
+  user        User     @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  createdById Int?
+  createdBy   User?    @relation("NotificationSender", fields: [createdById], references: [id], onDelete: SetNull)
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([createdById])
+  @@index([readAt])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  method       String
+  path         String
+  action       String
+  entity       String?
+  entityId     Int?
+  statusCode   Int
+  ip           String?
+  userAgent    String?
+  requestBody  Json?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([entityId])
+  @@index([statusCode])
+  @@index([createdAt])
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  isRoot      Boolean      @default(false) // Indicates if the role is a root role
+  permissions RolePermission[]
+  users       User[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Permission {
+  id        Int      @id @default(autoincrement())
+  moduleId  Int
+  module    Module   @relation(fields: [moduleId], references: [id])
+  action    String
+  roles     RolePermission[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([moduleId, action])
+}
+
+model RolePermission {
+  id           Int        @id @default(autoincrement())
+  roleId       Int
+  permissionId Int
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([roleId, permissionId])
+}
+
+model Module {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  permissions Permission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
